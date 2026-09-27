@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Simulação de Pagamento | RCONT-SCT</title>
+
+    <!-- ═══════════════════════════════════════════════
+         PWA META TAGS
+    ════════════════════════════════════════════════ -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <!-- theme-color pinta a barra do navegador no Chrome/Edge/Samsung Internet;
+         Firefox e Opera ignoram a tag (perda zero). Ver .hintrc -->
+    <meta name="theme-color" content="#0a1929">
+
+    <!-- iOS / Safari PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="RCONT Simulação">
+    <link rel="apple-touch-icon" href="img/FP-3d-icon_1_192.png">
+    <link rel="icon" type="image/png" href="img/FP-3d-icon_1_192.png">
+
+    <!-- SEO & OG -->
+    <meta name="description" content="Simulações de pagamento diurno e folguista — INSS, IRPF 2026, redutor, hora refeição e exportação PDF/Excel. RCONT-SCT.">
+    <meta name="application-name" content="RCONT Simulação de Pagamento">
+    <meta name="author" content="Rosemberg Oliveira – RCONT-SCT">
+    <meta property="og:title" content="Simulação de Pagamento | RCONT-SCT">
+    <meta property="og:description" content="Calcule simulações de pagamento diurno e folguista com INSS, IRPF 2026 e exportação para PDF/Excel.">
+    <meta property="og:type" content="website">
+
+    <!-- Fonte moderna -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --azul-escuro:   #0a1929;
+            --verde-escuro:  #1b4d3e;
+            --dourado-fosco: #b8860b;
+            --text-light:    #ffffff;
+            --text-muted:    rgba(255,255,255,0.7);
+            --card-bg:       rgba(10, 25, 41, 0.85);
+            --radius:        12px;
+            --safe-top:      env(safe-area-inset-top, 0px);
+            --safe-bottom:   env(safe-area-inset-bottom, 0px);
+        }
+
+        body {
+            font-family: 'Inter', Arial, sans-serif;
+            background: linear-gradient(135deg, var(--azul-escuro), #0f2b3d);
+            color: var(--text-light);
+            padding: 20px;
+            padding-top: calc(20px + var(--safe-top));
+            padding-bottom: calc(20px + var(--safe-bottom));
+            min-height: 100vh;
+            min-height: 100dvh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container { max-width: 720px; width: 100%; }
+
+        header { text-align: center; margin-bottom: 32px; }
+
+        .shadow-logo {
+            max-width: 120px;
+            max-height: 120px;
+            width: auto;
+            filter: drop-shadow(0 6px 18px rgba(0,0,0,0.55));
+        }
+
+        h1 { font-size: 26px; margin: 14px 0 6px; }
+        header p { font-size: 13px; color: var(--text-muted); }
+        header p + p { color: var(--dourado-fosco); font-weight: 600; }
+
+        .cards { display: grid; gap: 16px; grid-template-columns: 1fr; }
+        @media (min-width: 620px) { .cards { grid-template-columns: 1fr 1fr; } }
+
+        .card {
+            display: block;
+            text-decoration: none;
+            color: inherit;
+            background: var(--card-bg);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-left: 4px solid var(--dourado-fosco);
+            border-radius: var(--radius);
+            padding: 22px 20px;
+            transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+        }
+        .card:hover, .card:focus-visible {
+            transform: translateY(-3px);
+            border-color: var(--dourado-fosco);
+            box-shadow: 0 10px 28px rgba(0,0,0,0.5);
+            outline: none;
+        }
+
+        .card-icon { font-size: 34px; line-height: 1; }
+        .card h2 { font-size: 19px; margin: 12px 0 4px; color: var(--dourado-fosco); }
+        .card .tag { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); }
+        .card p { font-size: 13px; color: var(--text-muted); margin: 10px 0 14px; line-height: 1.5; }
+
+        .card ul { list-style: none; font-size: 12.5px; color: var(--text-muted); }
+        .card li { padding: 4px 0 4px 18px; position: relative; }
+        .card li::before { content: "✓"; position: absolute; left: 0; color: var(--verde-escuro); font-weight: 700; }
+
+        .card .go {
+            display: inline-block;
+            margin-top: 16px;
+            background: var(--dourado-fosco);
+            color: #000;
+            font-weight: 700;
+            font-size: 13px;
+            padding: 9px 18px;
+            border-radius: 8px;
+        }
+
+        footer { text-align: center; margin-top: 30px; font-size: 12px; color: var(--text-muted); }
+        footer a { color: var(--dourado-fosco); }
+
+        /* ─── STATUS OFFLINE ──────────────────────── */
+        #offline-toast {
+            display: none;
+            position: fixed;
+            top: calc(12px + var(--safe-top));
+            left: 50%;
+            transform: translateX(-50%);
+            background: #7f1d1d;
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 600;
+            z-index: 10000;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+            white-space: nowrap;
+        }
+        #offline-toast.show { display: block; }
+
+        #install-btn {
+            display: none;
+            margin: 24px auto 0;
+            background: var(--verde-escuro);
+            color: var(--text-light);
+            border: 1px solid var(--dourado-fosco);
+            border-radius: 999px;
+            padding: 11px 26px;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        #install-btn.show { display: block; }
+    </style>
+</head>
+<body>
+
+<div id="offline-toast">📵 Você está offline — usando dados em cache</div>
+
+<div class="container">
+    <header>
+        <img src="img/logo.png" alt="RCONT-SCT Logo" class="shadow-logo">
+        <h1>Simulação de Pagamento</h1>
+        <p>RCONT-SCT | Soluções Contábeis e Tributárias</p>
+        <p>Escolha o turno para calcular</p>
+    </header>
+
+    <main class="cards">
+        <a class="card" href="index_diurno.html">
+            <div class="card-icon">☀️</div>
+            <span class="tag">Turno Diurno</span>
+            <h2>Simulação Diurna</h2>
+            <p>Sem horas noturnas, com hora refeição por dia útil.</p>
+            <ul>
+                <li>INSS e IRPF 2026</li>
+                <li>Redutor e adicional noturno</li>
+                <li>Exportar PDF e Excel</li>
+            </ul>
+            <span class="go">Abrir →</span>
+        </a>
+
+        <a class="card" href="index_folguista.html">
+            <div class="card-icon">🌙</div>
+            <span class="tag">Turno Misto</span>
+            <h2>Simulação Folguista</h2>
+            <p>Diurno + cobertura noturna das folgas.</p>
+            <ul>
+                <li>INSS e IRPF 2026</li>
+                <li>Refeição diurna e adicional noturno</li>
+                <li>Exportar PDF e Excel</li>
+            </ul>
+            <span class="go">Abrir →</span>
+        </a>
+    </main>
+
+    <button id="install-btn">⬇ Instalar aplicativo</button>
+
+    <footer>
+        <strong>Demonstrativo para simples conferência.</strong> Não substitui a folha de pagamento oficial.<br>
+        Funciona offline após o primeiro acesso.<br>
+        <a href="https://wa.me/5511958930291" target="_blank" rel="noopener">Dúvidas? Fale no WhatsApp</a>
+    </footer>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     JAVASCRIPT
+    ════════════════════════════════════════════════ -->
+<script>
+// ══════════════════════════════════════════════
+// SERVICE WORKER REGISTRATION
+// ══════════════════════════════════════════════
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log('[PWA] Service Worker registrado:', reg.scope))
+            .catch(err => console.warn('[PWA] SW registration falhou:', err));
+    });
+}
+
+// ══════════════════════════════════════════════
+// OFFLINE / ONLINE DETECTION
+// ══════════════════════════════════════════════
+const offlineToast = document.getElementById('offline-toast');
+
+window.addEventListener('offline', () => offlineToast.classList.add('show'));
+window.addEventListener('online',  () => offlineToast.classList.remove('show'));
+
+if (!navigator.onLine) offlineToast.classList.add('show');
+
+// ══════════════════════════════════════════════
+// PWA INSTALL PROMPT
+// ══════════════════════════════════════════════
+let deferredPrompt = null;
+const installBtn = document.getElementById('install-btn');
+
+window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredPrompt = e;
+    installBtn.classList.add('show');
+});
+
+installBtn.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    installBtn.classList.remove('show');
+});
+
+window.addEventListener('appinstalled', () => {
+    installBtn.classList.remove('show');
+    deferredPrompt = null;
+});
+</script>
+</body>
+</html>
