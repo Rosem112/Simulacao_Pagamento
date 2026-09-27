@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Simulação de Pagamento Folguista | RCONT-SCT</title>
+
+    <!-- ═══════════════════════════════════════════════
+         PWA META TAGS
+    ════════════════════════════════════════════════ -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <!-- theme-color pinta a barra do navegador no Chrome/Edge/Samsung Internet;
+         Firefox e Opera ignoram a tag (perda zero). Ver .hintrc -->
+    <meta name="theme-color" content="#0a1929">
+
+    <!-- iOS / Safari PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="RCONT Simulação Folguista">
+    <link rel="apple-touch-icon" href="img/FP-3d-icon_1_192.png">
+    <link rel="icon" type="image/png" href="img/FP-3d-icon_1_192.png">
+
+    <!-- SEO & OG -->
+    <meta name="description" content="Simulação de pagamento de folguista" — turno misto: diurno + cobertura noturna das folgas. RCONT-SCT">
+    <meta name="application-name" content="RCONT Simulação de Pagamento Folguista">
+    <meta name="author" content="Rosemberg Oliveira – RCONT-SCT">
+    <meta property="og:title" content="Simulação de Pagamento Folguista | RCONT-SCT">
+    <meta property="og:description" content="Calcule a simulação de folguista com cobertura noturna, refeição diurna, INSS, IRPF 2026 e mais.">
+    <meta property="og:type" content="website">
+
+    <!-- Fonte moderna -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <!-- Bibliotecas -->
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --azul-escuro:   #0a1929;
+            --verde-escuro:  #1b4d3e;
+            --dourado-fosco: #b8860b;
+            --cinza-claro:   #e0e0e0;
+            --text-light:    #ffffff;
+            --text-muted:    rgba(255,255,255,0.7);
+            --card-bg:       rgba(10, 25, 41, 0.85);
+            --radius:        12px;
+            --safe-top:      env(safe-area-inset-top, 0px);
+            --safe-bottom:   env(safe-area-inset-bottom, 0px);
+        }
+
+        body {
+            font-family: 'Inter', Arial, sans-serif;
+            background: linear-gradient(135deg, var(--azul-escuro), #0f2b3d);
+            color: var(--text-light);
+            padding: 16px;
+            padding-top: calc(16px + var(--safe-top));
+            padding-bottom: calc(72px + var(--safe-bottom)); /* espaço p/ bottom nav */
+            min-height: 100vh;
+            min-height: 100dvh;
+        }
+
+        .container { max-width: 1200px; margin: auto; }
+
+        /* ─── BANNER INSTALL PWA ──────────────────── */
+        #install-banner {
+            display: none;
+            position: fixed;
+            bottom: calc(60px + var(--safe-bottom));
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 32px);
+            max-width: 560px;
+            background: linear-gradient(135deg, #1b4d3e, #0a2d1e);
+            border: 1px solid var(--dourado-fosco);
+            border-radius: 14px;
+            padding: 16px 20px;
+            z-index: 9999;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+            animation: slideUp 0.4s cubic-bezier(.22,.68,0,1.2);
+        }
+        #install-banner.show { display: flex; align-items: center; gap: 14px; }
+        #install-banner .banner-icon { font-size: 32px; flex-shrink: 0; }
+        #install-banner .banner-text { flex: 1; }
+        #install-banner .banner-text strong { display: block; font-size: 14px; color: var(--dourado-fosco); }
+        #install-banner .banner-text span  { font-size: 12px; color: var(--text-muted); }
+        #install-banner .banner-actions { display: flex; gap: 8px; flex-shrink: 0; }
+        #install-banner .btn-install {
+            background: var(--dourado-fosco); color: #000;
+            border: none; border-radius: 8px;
+            padding: 8px 16px; font-weight: 700; font-size: 13px;
+            cursor: pointer; white-space: nowrap;
+        }
+        #install-banner .btn-dismiss {
+            background: transparent; color: var(--text-muted);
+            border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;
+            padding: 8px 12px; font-size: 13px; cursor: pointer;
+        }
+
+        /* ─── STATUS OFFLINE ──────────────────────── */
+        #offline-toast {
+            display: none;
+            position: fixed;
+            top: calc(12px + var(--safe-top));
+            left: 50%;
+            transform: translateX(-50%);
+            background: #7f1d1d;
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 600;
+            z-index: 10000;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+            white-space: nowrap;
+        }
+        #offline-toast.show { display: block; }
+
+        #online-toast {
+            display: none;
+            position: fixed;
+            top: calc(12px + var(--safe-top));
+            left: 50%;
+            transform: translateX(-50%);
+            background: #14532d;
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 600;
+            z-index: 10000;
+            white-space: nowrap;
+        }
+        #online-toast.show { display: block; animation: fadeOut 3s forwards; }
+
+        /* ─── BOTTOM NAV (Mobile) ─────────────────── */
+        #bottom-nav {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: calc(56px + var(--safe-bottom));
+            padding-bottom: var(--safe-bottom);
+            background: rgba(10, 25, 41, 0.97);
+            -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px);
+            border-top: 1px solid rgba(184, 134, 11, 0.3);
+            z-index: 100;
+            justify-content: space-around;
+            align-items: center;
+        }
+        #bottom-nav.pwa-mode { display: flex; }
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            cursor: pointer;
+            color: var(--text-muted);
+            font-size: 10px;
+            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: 8px;
+            transition: 0.2s;
+        }
+        .nav-item .nav-icon { font-size: 20px; }
+        .nav-item.active { color: var(--dourado-fosco); }
+        .nav-item:active { transform: scale(0.92); }
+
+        /* ─── HEADER ──────────────────────────────── */
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: var(--radius);
+            border-left: 4px solid var(--dourado-fosco);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        header img {
+            max-width: 180px;
+            height: auto;
+            margin-bottom: 15px;
+            filter: brightness(0) invert(1);
+            transition: transform 0.3s ease;
+        }
+        header img:hover { transform: scale(1.05); }
+        header h1 {
+            font-size: clamp(24px, 4vw, 36px);
+            font-weight: 700;
+            color: var(--dourado-fosco);
+            margin-bottom: 8px;
+            line-height: 1.3;
+        }
+        header p { font-size: 14px; color: var(--text-muted); margin: 2px 0; }
+        header p:last-of-type { font-size: 12px; margin-top: 5px; opacity: 0.8; }
+
+        @media (max-width: 768px) { header { padding: 20px; } header img { max-width: 140px; margin-bottom: 12px; } }
+        @media (max-width: 480px) { header { padding: 15px; } header img { max-width: 120px; margin-bottom: 10px; } }
+        header img.shadow-logo { filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3)); }
+        header img.color-logo  { filter: none; }
+        header img.border-logo { border-radius: 8px; background: rgba(255,255,255,0.05); padding: 8px; }
+
+        /* ─── NAV ENTRE PÁGINAS ──────────────────── */
+        .container > nav {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: -12px 0 22px;
+        }
+        .container > nav a {
+            padding: 9px 18px;
+            background: var(--verde-escuro);
+            border: 1px solid var(--dourado-fosco);
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--text-light);
+            text-align: center;
+            text-decoration: none;
+            cursor: pointer;
+            transition: 0.3s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .container > nav a:hover  { background: #236b54; transform: translateY(-2px); }
+        .container > nav a:active { transform: scale(0.97); }
+
+        /* ─── CARD ────────────────────────────────── */
+        .card {
+            background: var(--card-bg);
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: var(--radius);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.5);
+            border: 1px solid rgba(184, 134, 11, 0.2);
+        }
+
+        /* ─── GRID ────────────────────────────────── */
+        .grid { display: grid; gap: 20px; grid-template-columns: 1fr; }
+        @media (min-width: 768px)  { .grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (min-width: 1024px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+
+        /* ─── FORM ────────────────────────────────── */
+        label {
+            font-size: 13px;
+            color: var(--cinza-claro);
+            font-weight: 600;
+            display: block;
+            margin-bottom: 5px;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--verde-escuro);
+            background: rgba(255,255,255,0.05);
+            color: var(--text-light);
+            font-size: 14px;
+            outline: none;
+            transition: all 0.3s ease;
+            /* Evita zoom iOS */
+            font-size: max(16px, 14px);
+        }
+        input:focus {
+            border-color: var(--dourado-fosco);
+            box-shadow: 0 0 0 3px rgba(184, 134, 11, 0.2);
+        }
+        input::placeholder { color: var(--text-muted); }
+
+        .turno-group { display: flex; gap: 8px; }
+        .turno-group input { flex: 1; }
+        .turno-select { width: 130px; }
+
+        select {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--verde-escuro);
+            background: rgba(255,255,255,0.05);
+            color: var(--text-light);
+            font-size: 14px;
+            outline: none;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        select:focus {
+            border-color: var(--dourado-fosco);
+            box-shadow: 0 0 0 3px rgba(184, 134, 11, 0.2);
+        }
+        select option { background: var(--azul-escuro); color: var(--text-light); }
+
+        /* ─── BUTTONS ─────────────────────────────── */
+        .button-group { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+        button {
+            flex: 1;
+            min-width: 150px;
+            padding: 14px;
+            background: var(--verde-escuro);
+            border: 1px solid var(--dourado-fosco);
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 15px;
+            color: var(--text-light);
+            cursor: pointer;
+            transition: 0.3s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+        button:hover  { background: #236b54; transform: translateY(-2px); }
+        button:active { transform: scale(0.97); }
+
+        .btn-excel {
+            background: #1e6f3f;
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 8px 20px; width: 180px; height: 45px;
+            color: white; border: 1px solid var(--dourado-fosco); border-radius: 10px;
+            font-weight: bold; font-size: 14px; cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        .btn-excel:hover { background: #2d8a4f; }
+
+        .btn-pdf {
+            background: #b83b0b;
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 8px 20px; width: 180px; height: 45px;
+            color: white; border: 1px solid var(--dourado-fosco); border-radius: 10px;
+            font-weight: bold; font-size: 14px; cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        .btn-pdf:hover { background: #d44c1a; }
+
+        .btn-limpar {
+            background: transparent;
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 8px 20px; width: 180px; height: 45px;
+            color: #fca5a5; border: 1px solid #7f1d1d; border-radius: 10px;
+            font-weight: bold; font-size: 14px; cursor: pointer;
+            transition: background-color 0.3s, color 0.3s, transform 0.2s;
+        }
+        .btn-limpar:hover  { background: #7f1d1d; color: #fff; }
+        .btn-limpar:active { transform: scale(0.97); }
+
+        /* ─── RESULTADOS ──────────────────────────── */
+        .resultado {
+            margin-top: 20px;
+            background: rgba(27, 77, 62, 0.2);
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid var(--dourado-fosco);
+            line-height: 1.8;
+            color: var(--cinza-claro);
+            font-size: 14px;
+            max-height: 500px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+        }
+        .resultado strong { color: var(--dourado-fosco); font-size: 16px; }
+        .resultado hr { border: 1px solid rgba(184, 134, 11, 0.3); margin: 15px 0; }
+
+        .soma {
+            margin-top: 20px;
+            background: rgba(184, 134, 11, 0.1);
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid var(--verde-escuro);
+            line-height: 2;
+            color: var(--text-light);
+            font-size: 16px;
+            font-weight: 600;
+        }
+        .soma span { color: var(--dourado-fosco); font-size: 18px; }
+        .soma .destaque-verde   { color: #4ade80; font-size: 20px; font-weight: 700; }
+        .soma .destaque-dourado { color: var(--dourado-fosco); font-size: 20px; font-weight: 700; }
+
+        /* ─── GRÁFICO ─────────────────────────────── */
+        .grafico-container {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(0,0,0,0.2);
+            border-radius: var(--radius);
+        }
+
+        /* ─── WHATSAPP ────────────────────────────── */
+        .btn-whatsapp {
+            display: inline-flex;
+            align-items: center; justify-content: center;
+            background: #25D366; color: white;
+            padding: 10px 20px; border-radius: 8px;
+            text-decoration: none; font-weight: 600;
+            margin: 10px 0; border: none; cursor: pointer; width: auto;
+        }
+        .btn-whatsapp:hover { background: #128C7E; transform: translateY(-2px); }
+
+        .btn-whatsapp-office {
+            display: inline-block;
+            text-decoration: none;
+            padding: 14px 30px;
+            border-radius: 10px;
+            background: #075E54;
+            color: white;
+            font-weight: 600;
+            transition: background 0.3s, transform 0.2s;
+        }
+        .btn-whatsapp-office:hover { background: #095d56; transform: translateY(-2px); }
+
+        .center-gap   { text-align: center; margin: 20px 0; }
+        .center-gap-sm { text-align: center; margin: 10px 0; }
+        .input-gap    { margin: 10px 0; }
+        .footer-gap   { margin-top: 10px; }
+
+        /* ─── MISC ────────────────────────────────── */
+        .info-box {
+            background: rgba(184, 134, 11, 0.15);
+            border: 1px solid var(--dourado-fosco);
+            padding: 10px; border-radius: 6px; margin: 10px 0; font-size: 13px;
+        }
+        .export-actions {
+            display: flex; gap: 10px;
+            justify-content: flex-end; margin-bottom: 10px;
+        }
+        .nota-rodape {
+            background: rgba(184, 134, 11, 0.1);
+            color: var(--cinza-claro); font-size: 12px;
+            padding: 12px; border-radius: 6px; margin-top: 20px;
+            border-left: 4px solid var(--verde-escuro);
+        }
+
+        /* ─── FOOTER ──────────────────────────────── */
+        footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-muted);
+            padding: 20px;
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            border-top: 1px solid var(--dourado-fosco);
+        }
+        footer strong { color: var(--dourado-fosco); }
+        .data-hora {
+            color: var(--cinza-claro); font-size: 14px;
+            margin-top: 10px; padding-top: 10px;
+            border-top: 1px solid rgba(184, 134, 11, 0.3);
+        }
+
+        /* ─── ANIMAÇÕES ───────────────────────────── */
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+            to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+        @keyframes fadeOut {
+            0%   { opacity: 1; }
+            60%  { opacity: 1; }
+            100% { opacity: 0; display: none; }
+        }
+
+        /* ─── SCROLLBAR ───────────────────────────── */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb { background: var(--dourado-fosco); border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════
+     TOASTS
+════════════════════════════════════════════════ -->
+<div id="offline-toast">📵 Você está offline — usando dados em cache</div>
+<div id="online-toast">✅ Conexão restaurada</div>
+
+<!-- ═══════════════════════════════════════════════
+     BANNER DE INSTALAÇÃO PWA
+════════════════════════════════════════════════ -->
+<div id="install-banner">
+    <span class="banner-icon">📲</span>
+    <div class="banner-text">
+        <strong>Instalar RCONT Simulação</strong>
+        <span>Acesse offline, mais rápido, como app nativo</span>
+    </div>
+    <div class="banner-actions">
+        <button class="btn-install" id="btn-install-confirm">Instalar</button>
+        <button class="btn-dismiss" id="btn-install-dismiss">✕</button>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     CONTEÚDO PRINCIPAL
+════════════════════════════════════════════════ -->
+<div class="container">
+    <header>
+        <img src="img/logo.png" alt="RCONT-SCT Logo" class="shadow-logo">
+        <h1>Simulação de Pagamento Folguista</h1>
+        <p>RCONT-SCT | Soluções Contábeis e Tributárias</p>
+        <p>Turno Misto | Diurno + Cobertura Noturna</p>
+    </header>
+
+    <nav>
+        <a href="index.html">← Sair</a>
+        <a href="index_diurno.html">Simulação Diurna →</a>
+    </nav>
+
+    <div class="card">
+        <div class="grid">
+            <div>
+                <label>Salário Base (R$)</label>
+                <input type="number" id="salario" step="0.01" placeholder="Ex: 3500.00" inputmode="decimal">
+            </div>
+            <div>
+                <label>Adicional Tempo Serviço (0-3)</label>
+                <input type="number" id="bienio" min="0" max="3" step="1" placeholder="0, 1, 2 ou 3" inputmode="numeric">
+            </div>
+            <div>
+                <label>Dias Úteis (mês)</label>
+                <input type="number" id="diasuteis" placeholder="Ex: 25" inputmode="numeric">
+            </div>
+            <div>
+                <label>Dias Noturnos (Folgas Cobertas)</label>
+                <input type="number" id="diasnoite" placeholder="Ex: 8" inputmode="numeric">
+            </div>
+            <div>
+                <label>Domingos</label>
+                <input type="number" id="domingo" placeholder="Ex: 4" inputmode="numeric">
+            </div>
+            <div>
+                <label>Feriados no Mês</label>
+                <input type="number" id="mferiado" placeholder="Ex: 2" inputmode="numeric">
+            </div>
+            <div>
+                <label>Feriados Trabalhados · Turno</label>
+                <div class="turno-group">
+                    <input type="number" id="feriado" placeholder="Ex: 1" inputmode="numeric">
+                    <select id="turnoFeriado" class="turno-select" title="Turno dos feriados trabalhados" aria-label="Turno dos feriados trabalhados">
+                        <option value="noturno">Noturno</option>
+                        <option value="diurno">Diurno</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label>Folgas Trabalhadas · Turno</label>
+                <div class="turno-group">
+                    <input type="number" id="folgatrab" placeholder="Ex: 2" inputmode="numeric">
+                    <select id="turnoFolga" class="turno-select" title="Turno das folgas trabalhadas" aria-label="Turno das folgas trabalhadas">
+                        <option value="noturno">Noturno</option>
+                        <option value="diurno">Diurno</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label>Dependentes</label>
+                <input type="number" id="dependente" placeholder="Ex: 2" inputmode="numeric">
+            </div>
+        </div>
+
+        <div class="info-box">
+            <strong>Contribuição Assistencial:</strong> 1% sobre o total de proventos (conforme convenção coletiva)
+        </div>
+
+        <div class="button-group">
+            <button onclick="exportarExcel()" class="btn-excel">
+                <img src="img/exportexcel.ico" alt="" width="20" height="20" onerror="this.style.display='none'"> EXPORTAR EXCEL
+            </button>
+            <button onclick="exportarPDF()" class="btn-pdf">
+                <img src="img/exportpdf.ico" alt="" width="20" height="20" onerror="this.style.display='none'"> EXPORTAR PDF
+            </button>
+            <br>
+            <button onclick="calcular()">CALCULAR SIMULAÇÃO</button>
+            <button onclick="limparFolha()" class="btn-limpar">🗑️ LIMPAR</button>
+        </div>
+
+        <!-- Resultados -->
+        <div id="res" class="resultado">
+            <strong>PROVENTOS E DESCONTOS</strong><br>
+            Preencha os campos e clique em Calcular
+        </div>
+
+        <div id="soma" class="soma">
+            <span>RESUMO FINANCEIRO</span><br>
+            Aguardando cálculo...
+        </div>
+
+        <!-- Gráfico -->
+        <div class="grafico-container">
+            <canvas id="grafico"></canvas>
+        </div>
+
+        <!-- WhatsApp -->
+        <div class="center-gap">
+            <label for="whatsappUsuario">Número WhatsApp (com DDI, ex: 5511999998888)</label>
+            <input type="text" id="whatsappUsuario" placeholder="Digite seu número" class="input-gap" inputmode="tel">
+            <a href="javascript:void(0)" onclick="enviarWhatsAppUsuario()" class="btn-whatsapp">
+                📱 Enviar relatório por WhatsApp
+            </a>
+        </div>
+
+        <!-- Botão WhatsApp Escritório -->
+        <div class="center-gap-sm">
+            <a href="https://wa.me/5511958930291" target="_blank" rel="noopener" class="btn-whatsapp-office">
+                💬 Falar com o Escritório no WhatsApp
+            </a>
+        </div>
+
+        <!-- Nota -->
+        <div class="nota-rodape">
+            🔹 <strong>Demonstrativo para simples conferência.</strong> Não substitui a folha de pagamento oficial.
+            🔹 Turno misto: diurno + cobertura das folgas do noturno. Os dias noturnos são descontados
+            dos dias úteis para o cálculo diurno. Simulação baseada na legislação vigente 2026. INSS e IRPF calculados
+            conforme tabela oficial da Receita Federal. Contribuição Assistencial: 1% sobre o total de proventos.
+        </div>
+    </div>
+
+    <footer>
+        <p>
+            <strong>RCONT-SCT | Soluções Contábeis e Tributárias</strong><br>
+            Rosemberg Oliveira – Contador<br>
+            📞 (11) 95893-0291 | 📩 contato@rcont-sct.com.br
+        </p>
+        <div class="data-hora" id="dataHora"></div>
+        <p class="footer-gap">&copy; 2026 - Todos os direitos reservados</p>
+    </footer>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     BOTTOM NAV (aparece só no modo PWA standalone)
+════════════════════════════════════════════════ -->
+<nav id="bottom-nav">
+    <div class="nav-item active" onclick="scrollToTop()">
+        <span class="nav-icon">🏠</span>
+        <span>Início</span>
+    </div>
+    <div class="nav-item" onclick="calcular()">
+        <span class="nav-icon">🧮</span>
+        <span>Calcular</span>
+    </div>
+    <div class="nav-item" onclick="exportarPDF()">
+        <span class="nav-icon">📄</span>
+        <span>PDF</span>
+    </div>
+    <div class="nav-item" onclick="exportarExcel()">
+        <span class="nav-icon">📊</span>
+        <span>Excel</span>
+    </div>
+    <div class="nav-item" onclick="abrirWhatsApp()">
+        <span class="nav-icon">💬</span>
+        <span>WhatsApp</span>
+    </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════════════ -->
+<script>
+// ══════════════════════════════════════════════
+// SERVICE WORKER REGISTRATION
+// ══════════════════════════════════════════════
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log('[PWA] Service Worker registrado:', reg.scope))
+            .catch(err => console.warn('[PWA] SW registration falhou:', err));
+    });
+}
+
+// ══════════════════════════════════════════════
+// OFFLINE / ONLINE DETECTION
+// ══════════════════════════════════════════════
+const offlineToast = document.getElementById('offline-toast');
+const onlineToast  = document.getElementById('online-toast');
+
+window.addEventListener('offline', () => {
+    offlineToast.classList.add('show');
+    onlineToast.classList.remove('show');
+});
+
+window.addEventListener('online', () => {
+    offlineToast.classList.remove('show');
+    onlineToast.classList.add('show');
+    setTimeout(() => onlineToast.classList.remove('show'), 3000);
+});
+
+if (!navigator.onLine) offlineToast.classList.add('show');
+
+// ══════════════════════════════════════════════
+// PWA INSTALL PROMPT
+// ══════════════════════════════════════════════
+let deferredPrompt = null;
+const installBanner = document.getElementById('install-banner');
+
+window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredPrompt = e;
+
+    // Só mostra se não foi dismissado recentemente
+    const dismissed = localStorage.getItem('pwa-install-dismissed');
+    if (!dismissed || (Date.now() - parseInt(dismissed)) > 7 * 24 * 60 * 60 * 1000) {
+        setTimeout(() => installBanner.classList.add('show'), 2000);
+    }
+});
+
+document.getElementById('btn-install-confirm').addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    installBanner.classList.remove('show');
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log('[PWA] Resultado instalação:', outcome);
+    deferredPrompt = null;
+});
+
+document.getElementById('btn-install-dismiss').addEventListener('click', () => {
+    installBanner.classList.remove('show');
+    localStorage.setItem('pwa-install-dismissed', Date.now());
+});
+
+window.addEventListener('appinstalled', () => {
+    console.log('[PWA] App instalado com sucesso!');
+    installBanner.classList.remove('show');
+    deferredPrompt = null;
+});
+
+// ══════════════════════════════════════════════
+// BOTTOM NAV — exibir apenas no modo standalone
+// ══════════════════════════════════════════════
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+    || window.navigator.standalone === true;
+
+if (isStandalone) {
+    document.getElementById('bottom-nav').classList.add('pwa-mode');
+}
+
+function scrollToTop() { window.scrollTo({ top: 0, behavior: 'smooth' }); }
+function abrirWhatsApp() { window.open('https://wa.me/5511958930291', '_blank'); }
+
+// ══════════════════════════════════════════════
+// CONFIGURAÇÕES 2026
+// ══════════════════════════════════════════════
+const CONFIG = {
+    VALOR_DEPENDENTE:      189.59,
+    DESCONTO_SIMPLIFICADO: 607.00,
+    REDUTOR_BASE:          978.62,
+    REDUTOR_FATOR:         0.133145
+};
+
+// ══════════════════════════════════════════════
+// DATA E HORA EM TEMPO REAL
+// ══════════════════════════════════════════════
+function atualizarDataHora() {
+    const agora = new Date();
+    const dataHoraElem = document.getElementById('dataHora');
+    if (dataHoraElem) {
+        dataHoraElem.innerHTML = agora.toLocaleDateString('pt-BR', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+            hour: '2-digit', minute: '2-digit', second: '2-digit',
+            timeZone: 'America/Sao_Paulo'
+        });
+    }
+}
+setInterval(atualizarDataHora, 1000);
+atualizarDataHora();
+
+// ══════════════════════════════════════════════
+// UTILITÁRIOS
+// ══════════════════════════════════════════════
+function parseMoeda(valor) {
+    if (!valor) return 0;
+    if (typeof valor === 'string') valor = valor.replace(/\./g, '').replace(',', '.');
+    return parseFloat(valor) || 0;
+}
+
+function formatar(v) {
+    return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function formatarNumero(v) {
+    return v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// ══════════════════════════════════════════════
+// INSS PROGRESSIVO 2026
+// ══════════════════════════════════════════════
+function calcularINSS(salario) {
+    const faixas = [
+        { limite: 1621.00, aliquota: 0.075 },
+        { limite: 2902.84, aliquota: 0.09  },
+        { limite: 4354.27, aliquota: 0.12  },
+        { limite: 8475.55, aliquota: 0.14  }
+    ];
+    let total = 0, anterior = 0;
+    for (let f of faixas) {
+        if (salario > anterior) {
+            total += (Math.min(salario, f.limite) - anterior) * f.aliquota;
+            anterior = f.limite;
+        }
+    }
+    return total;
+}
+
+// ══════════════════════════════════════════════
+// IR PROGRESSIVO
+// ══════════════════════════════════════════════
+function calcularIR(base) {
+    if (base <= 2428.80) return { ir: 0,                              faixa: "Isento"  };
+    if (base <= 2826.65) return { ir: (base * 0.075) - 182.16,       faixa: "7,5%"    };
+    if (base <= 3751.05) return { ir: (base * 0.15)  - 394.16,       faixa: "15%"     };
+    if (base <= 4664.68) return { ir: (base * 0.225) - 675.49,       faixa: "22,5%"   };
+    return                      { ir: (base * 0.275) - 908.73,       faixa: "27,5%"   };
+}
+
+// ══════════════════════════════════════════════
+// REDUTOR (Lei 2026)
+// ══════════════════════════════════════════════
+function calcularRedutor(rendaBruta) {
+    if (rendaBruta <= 5000) return 312.89;
+    if (rendaBruta <= 7350) return Math.max(978.62 - (0.133145 * rendaBruta), 0);
+    return 0;
+}
+
+// ══════════════════════════════════════════════
+// VARIÁVEIS GLOBAIS
+// ══════════════════════════════════════════════
+let ultimosResultados = {
+    proventos: 0, descontos: 0, liquido: 0, redutor: 0,
+    irCompleto: 0, irSimplificado: 0, inss: 0,
+    adiantSal: 0, valeTransp: 0, contribAssist: 0
+};
+
+// ══════════════════════════════════════════════
+// LIMPAR — NOVA SIMULAÇÃO
+// ══════════════════════════════════════════════
+const CAMPOS_FOLHA = [
+    'salario', 'bienio', 'diasuteis', 'diasnoite', 'domingo', 'mferiado',
+    'feriado', 'folgatrab', 'dependente', 'whatsappUsuario'
+];
+
+function limparFolha() {
+    CAMPOS_FOLHA.forEach(id => {
+        const campo = document.getElementById(id);
+        if (campo) campo.value = '';
+    });
+
+    // mantém a mesma forma de zeros: o guard das exportações checa proventos === 0
+    ultimosResultados = {
+        proventos: 0, descontos: 0, liquido: 0, redutor: 0,
+        irCompleto: 0, irSimplificado: 0, inss: 0,
+        adiantSal: 0, valeTransp: 0, contribAssist: 0
+    };
+
+    document.getElementById('res').innerHTML =
+        '<strong>PROVENTOS E DESCONTOS</strong><br>Preencha os campos e clique em Calcular';
+    document.getElementById('soma').innerHTML =
+        '<span>RESUMO FINANCEIRO</span><br>Aguardando cálculo...';
+
+    const canvas = document.getElementById('grafico');
+    if (grafico) { grafico.destroy(); grafico = null; }
+    if (canvas) canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    document.getElementById('salario').focus();
+}
+
+// ══════════════════════════════════════════════
+// FUNÇÃO PRINCIPAL — FOLGUISTA
+// ══════════════════════════════════════════════
+function calcular() {
+    var sal        = Number(document.getElementById('salario').value)   || 0;
+    var bnio       = Number(document.getElementById('bienio').value)    || 0;
+    var d_uteis    = Number(document.getElementById('diasuteis').value) || 0;
+    var d_noite    = Number(document.getElementById('diasnoite').value) || 0;
+    var dmingo     = Number(document.getElementById('domingo').value)   || 0;
+    var mfriado    = Number(document.getElementById('mferiado').value)  || 0;
+    var friado     = Number(document.getElementById('feriado').value)   || 0;
+    var folga_trab = Number(document.getElementById('folgatrab').value) || 0;
+    var dpendente  = Number(document.getElementById('dependente').value)|| 0;
+
+    var dias_dia   = Math.max(d_uteis - d_noite, 0);
+
+    var hr_norm    = sal / 220;
+    var hr_not     = hr_norm * 1.2;
+    var hr_50_not  = hr_not * 1.5;
+    var hr_100_not = hr_not * 2;
+    var hr_100_dia = hr_norm * 2;
+
+    var turno_fer  = document.getElementById('turnoFeriado') ? document.getElementById('turnoFeriado').value : 'noturno';
+    var turno_fol  = document.getElementById('turnoFolga')   ? document.getElementById('turnoFolga').value   : 'noturno';
+
+    var hr_100_fer = turno_fer === 'diurno' ? hr_100_dia : hr_100_not;
+    var hr_100_fol = turno_fol === 'diurno' ? hr_100_dia : hr_100_not;
+
+    // Verbas noturnas — proporcionais aos dias noturnos
+    var hr_ref_not = hr_50_not * d_noite;
+    var hr_red     = 9.6 * d_noite * 1.1429;
+    var hr_premia  = hr_50_not * d_noite;
+    var ad_not     = d_uteis > 0 ? sal * 0.20 * (d_noite / d_uteis) : 0;
+    var ft         = hr_100_fol * 9 * folga_trab;
+    var frdo       = hr_100_fer * 9 * friado;
+    var ref_100    = hr_100_fer * friado + hr_100_fol * folga_trab;
+
+    // Verba diurna — refeição por dia diurno
+    var hr_refeicao = hr_norm * dias_dia;
+
+    var adiant_sal  = sal * 0.40;
+    var vale_transp = sal * 0.06;
+
+    var resultado = document.getElementById('res');
+    var somar     = document.getElementById('soma');
+    resultado.innerHTML = '';
+    somar.innerHTML     = '';
+
+    resultado.innerHTML += `<small>Folguista — Dias úteis: ${d_uteis} | Dias noturnos: ${d_noite} | Dias diurnos: ${dias_dia}</small><br><br>`;
+    resultado.innerHTML += `<strong>🔼 PROVENTOS:</strong><br><br>`;
+    resultado.innerHTML += `Salário Base: ${formatar(sal)}<br>`;
+    resultado.innerHTML += `Adic. Noturno: ${formatar(ad_not)}<br>`;
+
+    var fator_tmp = bnio === 1 ? 0.05 : bnio === 2 ? 0.10 : bnio >= 3 ? 0.15 : 0;
+    var ad_temp_used = fator_tmp ? sal * fator_tmp : 0;
+    resultado.innerHTML += `Adic. Tempo de Serv.: ${formatar(ad_temp_used)}<br>`;
+
+    var he_basis = hr_ref_not + hr_premia + hr_red + ft + frdo + ref_100;
+
+    var ad_temp_serv_he = 0;
+    if (bnio >= 1) ad_temp_serv_he = he_basis * fator_tmp;
+    resultado.innerHTML += `Adic. Tempo de Serv. HE: ${formatar(ad_temp_serv_he)}<br>`;
+
+    var dsr = d_uteis > 0
+        ? ((ad_temp_serv_he + hr_ref_not + hr_red + hr_premia + hr_refeicao) / d_uteis) * (dmingo + mfriado)
+        : 0;
+    resultado.innerHTML += `DSR Mês: ${formatar(dsr)}<br>`;
+
+    resultado.innerHTML += `Hora Refeição Diurna: ${formatar(hr_refeicao)}<br>`;
+    resultado.innerHTML += `Hora 50% Ref. Noturna: ${formatar(hr_ref_not)}<br>`;
+    resultado.innerHTML += `Horário Noturno Reduz.: ${formatar(hr_red)}<br>`;
+    resultado.innerHTML += `Hora 50% Noturna: ${formatar(hr_premia)}<br>`;
+    resultado.innerHTML += `Feriado 100% Mês: ${formatar(frdo)}<br>`;
+    resultado.innerHTML += `Folgas Trabalhadas: ${formatar(ft)}<br>`;
+    resultado.innerHTML += `Hora 100% Ref. Noturna: ${formatar(ref_100)}<br><br>`;
+
+    var totalProventos = sal + ad_not + ad_temp_used + ad_temp_serv_he + dsr
+                       + hr_refeicao + hr_ref_not + hr_red + hr_premia + frdo + ft + ref_100;
+
+    resultado.innerHTML += `<strong>🔽 DESCONTOS:</strong><br><br>`;
+    resultado.innerHTML += `Adiant. Salário: ${formatar(adiant_sal)}<br>`;
+    resultado.innerHTML += `Vale Transporte: ${formatar(vale_transp)}<br>`;
+
+    var inss = calcularINSS(totalProventos);
+    resultado.innerHTML += `INSS Mês (2026): ${formatar(inss)}<br>`;
+
+    var contribuicaoAssistencial = totalProventos * 0.01;
+    resultado.innerHTML += `Contribuição Assistencial (1%): ${formatar(contribuicaoAssistencial)}<br>`;
+
+    var dedDependentes = dpendente * CONFIG.VALOR_DEPENDENTE;
+    var baseCompleta   = Math.max(totalProventos - inss - dedDependentes, 0);
+    var irProgCompleto = calcularIR(baseCompleta);
+    var redutorValor   = calcularRedutor(totalProventos);
+    var irCompleto     = Math.max(irProgCompleto.ir - redutorValor, 0);
+
+    var baseSimplificado  = Math.max(totalProventos - CONFIG.DESCONTO_SIMPLIFICADO, 0);
+    var irProgSimplificado = calcularIR(baseSimplificado);
+    var irSimplificado    = Math.max(irProgSimplificado.ir - redutorValor, 0);
+
+    var melhorIR = Math.min(irCompleto, irSimplificado);
+    var regime   = melhorIR === irCompleto ? "Completo" : "Simplificado";
+
+    resultado.innerHTML += `<br><strong>REDUTOR (Lei 2026):</strong><br>`;
+    resultado.innerHTML += `Renda Bruta Mensal: ${formatar(totalProventos)}<br>`;
+
+    if (totalProventos <= 5000) {
+        resultado.innerHTML += `Faixa: Até R$ 5.000 → Redução máxima de R$ 312,89 (IR zerado)<br>`;
+    } else if (totalProventos <= 7350) {
+        resultado.innerHTML += `Faixa: R$ 5.001 a R$ 7.350 → Redução regressiva<br>`;
+        resultado.innerHTML += `Cálculo: R$ 978,62 – (0,133145 × ${formatar(totalProventos)})<br>`;
+    } else {
+        resultado.innerHTML += `Faixa: Acima de R$ 7.350 → Sem redução<br>`;
+    }
+
+    resultado.innerHTML += `Redutor Aplicado: ${formatar(redutorValor)}<br><br>`;
+    resultado.innerHTML += `<strong>IRPF (${regime}):</strong> ${formatar(melhorIR)}<br>`;
+    resultado.innerHTML += `Base Cálculo IR: ${formatar(baseCompleta)}<br>`;
+    resultado.innerHTML += `IR Progressivo: ${formatar(irProgCompleto.ir)}<br>`;
+    resultado.innerHTML += `Dedução Dependentes: ${formatar(dedDependentes)}<br>`;
+
+    var totalDescontos  = adiant_sal + vale_transp + inss + melhorIR + contribuicaoAssistencial;
+    var salarioLiquido  = totalProventos - totalDescontos;
+
+    somar.innerHTML += `<span>🔼 TOTAL PROVENTOS (Renda Bruta):</span> ${formatar(totalProventos)}<br><br>`;
+    somar.innerHTML += `<span>🔽 TOTAL DESCONTOS:</span> ${formatar(totalDescontos)}<br>`;
+    somar.innerHTML += `├─ Adiant. Salário (40%): ${formatar(adiant_sal)}<br>`;
+    somar.innerHTML += `├─ Vale Transporte (6%): ${formatar(vale_transp)}<br>`;
+    somar.innerHTML += `├─ INSS: ${formatar(inss)}<br>`;
+    somar.innerHTML += `├─ IRPF: ${formatar(melhorIR)}<br>`;
+    somar.innerHTML += `└─ Contrib. Assistencial (1%): ${formatar(contribuicaoAssistencial)}<br><br>`;
+    somar.innerHTML += `<span class="destaque-verde">💰 SALÁRIO LÍQUIDO:</span> <span class="destaque-dourado">${formatar(salarioLiquido)}</span><br>`;
+    somar.innerHTML += `<hr style="border-color: rgba(184,134,11,0.3); margin: 15px 0;">`;
+    somar.innerHTML += `<small>• Descontos: ${formatarNumero((totalDescontos/totalProventos)*100)}% do Bruto</small><br>`;
+    somar.innerHTML += `<small>• Líquido: ${formatarNumero((salarioLiquido/totalProventos)*100)}% do Bruto</small><br>`;
+    somar.innerHTML += `<small>• Redutor: ${formatar(redutorValor)} (baseado na renda bruta de ${formatar(totalProventos)})</small>`;
+
+    ultimosResultados = {
+        proventos: totalProventos, descontos: totalDescontos, liquido: salarioLiquido,
+        redutor: redutorValor, irCompleto, irSimplificado, inss,
+        adiantSal: adiant_sal, valeTransp: vale_transp, contribAssist: contribuicaoAssistencial,
+        salBase: sal, adNoturno: ad_not, hrRefeicao: hr_refeicao, adTempo: ad_temp_used, adTempoHE: ad_temp_serv_he,
+        dsr, hrRefNot: hr_ref_not, hrRed: hr_red, hrPremia: hr_premia, frdo, ft, ref100: ref_100,
+        regime, melhorIR, baseIR: baseCompleta, dedDependentes,
+        dUteis: d_uteis, dNoite: d_noite, diasDia: dias_dia
+    };
+
+    gerarGrafico(irCompleto, irSimplificado, totalProventos, salarioLiquido, totalDescontos, redutorValor);
+
+    // Scroll para resultado em mobile
+    if (window.innerWidth < 768) {
+        setTimeout(() => document.getElementById('res').scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
+    }
+}
+
+// ══════════════════════════════════════════════
+// GRÁFICO
+// ══════════════════════════════════════════════
+let grafico;
+function gerarGrafico(irCompleto, irSimplificado, proventos, liquido, descontos, redutor) {
+    const ctx = document.getElementById("grafico").getContext("2d");
+    if (grafico) grafico.destroy();
+
+    grafico = new Chart(ctx, {
+        type: "bar",
+        data: {
+            labels: ["IR Completo", "IR Simplificado", "Proventos", "Descontos", "Líquido", "Redutor"],
+            datasets: [{
+                label: "Valores (R$)",
+                data:  [irCompleto, irSimplificado, proventos, descontos, liquido, redutor],
+                backgroundColor: ["#b8860b","#1b4d3e","#00008B","#dc2626","#4ade80","#60a5fa"],
+                borderRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { labels: { color: "rgba(255,255,255,0.75)" } },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ctx.dataset.label + ': ' + formatar(ctx.raw)
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    ticks: {
+                        color: "rgba(255,255,255,0.75)",
+                        callback: v => formatar(v)
+                    },
+                    grid: { color: "rgba(255,255,255,0.08)" }
+                },
+                x: { ticks: { color: "rgba(255,255,255,0.75)" } }
+            }
+        }
+    });
+}
+
+// ══════════════════════════════════════════════
+// EXPORTAR EXCEL
+// ══════════════════════════════════════════════
+function exportarExcel() {
+    if (ultimosResultados.proventos === 0) { alert("Por favor, calcule a simulação primeiro!"); return; }
+
+    const dados = [
+        ["SIMULAÇÃO DE PAGAMENTO FOLGUISTA"],
+        ["RCONT-SCT | Soluções Contábeis e Tributárias"],
+        ["Data:", new Date().toLocaleDateString('pt-BR')],
+        [],
+        ["PROVENTOS", "Valor (R$)"],
+        ["Salário Base",               formatarNumero(ultimosResultados.salBase)],
+        ["Adicional Noturno",          formatarNumero(ultimosResultados.adNoturno)],
+        ["Adicional Tempo Serviço",    formatarNumero(ultimosResultados.adTempo)],
+        ["Adicional Tempo Serviço HE", formatarNumero(ultimosResultados.adTempoHE)],
+        ["DSR",                        formatarNumero(ultimosResultados.dsr)],
+        ["Hora Refeição Diurna",       formatarNumero(ultimosResultados.hrRefeicao)],
+        ["Hora 50% Ref. Noturna",      formatarNumero(ultimosResultados.hrRefNot)],
+        ["Horário Noturno Reduzido",   formatarNumero(ultimosResultados.hrRed)],
+        ["Hora 50% Noturna",           formatarNumero(ultimosResultados.hrPremia)],
+        ["Feriado 100%",               formatarNumero(ultimosResultados.frdo)],
+        ["Folgas Trabalhadas",         formatarNumero(ultimosResultados.ft)],
+        ["Hora 100% Ref. Noturna",     formatarNumero(ultimosResultados.ref100)],
+        ["TOTAL PROVENTOS",            formatarNumero(ultimosResultados.proventos)],
+        [],
+        ["DESCONTOS", "Valor (R$)"],
+        ["Adiantamento Salarial",      formatarNumero(ultimosResultados.adiantSal)],
+        ["Vale Transporte",            formatarNumero(ultimosResultados.valeTransp)],
+        ["INSS",                       formatarNumero(ultimosResultados.inss)],
+        ["IRPF",                       formatarNumero(ultimosResultados.melhorIR)],
+        ["Contribuição Assistencial",  formatarNumero(ultimosResultados.contribAssist)],
+        ["TOTAL DESCONTOS",            formatarNumero(ultimosResultados.descontos)],
+        [],
+        ["SALÁRIO LÍQUIDO",            formatarNumero(ultimosResultados.liquido)],
+        [],
+        ["PERCENTUAIS"],
+        [`* Descontos: ${formatarNumero((ultimosResultados.descontos/ultimosResultados.proventos)*100)}% do Bruto`],
+        [`* Líquido: ${formatarNumero((ultimosResultados.liquido/ultimosResultados.proventos)*100)}% do Bruto`],
+        [`* Redutor: ${formatar(ultimosResultados.redutor)} (baseado na renda bruta de ${formatar(ultimosResultados.proventos)})`],
+        [],
+        ["Rosemberg Oliveira – Contador"],
+        ["DEMONSTRATIVO PARA SIMPLES CONFERÊNCIA"],
+        ["Não substitui a folha de pagamento oficial"],
+        ["Simulação baseada na legislação vigente 2026"],
+        ["RCONT-SCT | (11) 95893-0291 | contato@rcont-sct.com.br"],
+    ];
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(dados);
+    XLSX.utils.book_append_sheet(wb, ws, "Simulação Folguista");
+    XLSX.writeFile(wb, `simulacao_pagamento_folguista_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+// ══════════════════════════════════════════════
+// EXPORTAR PDF
+// ══════════════════════════════════════════════
+function exportarPDF() {
+    if (ultimosResultados.proventos === 0) { alert("Por favor, calcule a simulação primeiro!"); return; }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 15;
+    let y = 20;
+
+    doc.setFontSize(18); doc.setTextColor(184, 134, 11);
+    doc.text("SIMULAÇÃO DE PAGAMENTO FOLGUISTA", pageWidth / 2, y, { align: "center" });
+
+    y += 10; doc.setFontSize(12); doc.setTextColor(0, 0, 0);
+    doc.text("RCONT-SCT | Soluções Contábeis e Tributárias", pageWidth / 2, y, { align: "center" });
+
+    y += 10; doc.text(`Data: ${new Date().toLocaleDateString('pt-BR')}`, margin, y);
+    y += 15;
+
+    doc.setFontSize(14); doc.setTextColor(27, 77, 62);
+    doc.text("PROVENTOS", margin, y);
+
+    y += 8; doc.setFontSize(10); doc.setTextColor(0, 0, 0);
+    [
+        ["Salário Base",               formatar(ultimosResultados.salBase)],
+        ["Adicional Noturno",          formatar(ultimosResultados.adNoturno)],
+        ["Adicional Tempo Serviço",    formatar(ultimosResultados.adTempo)],
+        ["Adicional Tempo Serviço HE", formatar(ultimosResultados.adTempoHE)],
+        ["DSR",                        formatar(ultimosResultados.dsr)],
+        ["Hora Refeição Diurna",       formatar(ultimosResultados.hrRefeicao)],
+        ["Hora 50% Ref. Noturna",      formatar(ultimosResultados.hrRefNot)],
+        ["Horário Noturno Reduzido",   formatar(ultimosResultados.hrRed)],
+        ["Hora 50% Noturna",           formatar(ultimosResultados.hrPremia)],
+        ["Feriado 100%",               formatar(ultimosResultados.frdo)],
+        ["Folgas Trabalhadas",         formatar(ultimosResultados.ft)],
+        ["Hora 100% Ref. Noturna",     formatar(ultimosResultados.ref100)],
+    ].forEach(item => {
+        doc.text(item[0], margin + 5, y);
+        doc.text(item[1], pageWidth - margin - 30, y, { align: "right" });
+        y += 6;
+    });
+
+    y += 2; doc.setFontSize(11); doc.setFont("helvetica", "bold");
+    doc.text("TOTAL PROVENTOS", margin + 5, y);
+    doc.text(formatar(ultimosResultados.proventos), pageWidth - margin - 30, y, { align: "right" });
+    y += 12;
+
+    doc.setFontSize(14); doc.setTextColor(220, 38, 38);
+    doc.text("DESCONTOS", margin, y);
+    y += 8; doc.setFontSize(10); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "normal");
+    [
+        ["Adiantamento Salarial",     formatar(ultimosResultados.adiantSal)],
+        ["Vale Transporte",           formatar(ultimosResultados.valeTransp)],
+        ["INSS",                      formatar(ultimosResultados.inss)],
+        ["IRPF",                      formatar(ultimosResultados.melhorIR)],
+        ["Contribuição Assistencial", formatar(ultimosResultados.contribAssist)],
+    ].forEach(item => {
+        doc.text(item[0], margin + 5, y);
+        doc.text(item[1], pageWidth - margin - 30, y, { align: "right" });
+        y += 6;
+    });
+
+    y += 2; doc.setFontSize(11); doc.setFont("helvetica", "bold");
+    doc.text("TOTAL DESCONTOS", margin + 5, y);
+    doc.text(formatar(ultimosResultados.descontos), pageWidth - margin - 30, y, { align: "right" });
+    y += 12;
+
+    doc.setFontSize(16); doc.setTextColor(27, 77, 62);
+    doc.text("SALÁRIO LÍQUIDO", margin, y);
+    doc.setTextColor(184, 134, 11);
+    doc.text(formatar(ultimosResultados.liquido), pageWidth - margin - 30, y, { align: "right" });
+    y += 15;
+
+    doc.setFontSize(10); doc.setTextColor(100, 100, 100);
+
+    doc.setFont("helvetica", "bold");
+    doc.text("PERCENTUAIS:", margin, y); y += 5;
+    doc.setFont("helvetica", "normal");
+    doc.text(`* Descontos: ${formatarNumero((ultimosResultados.descontos/ultimosResultados.proventos)*100)}% do Bruto`, margin, y); y += 5;
+    doc.text(`* Líquido: ${formatarNumero((ultimosResultados.liquido/ultimosResultados.proventos)*100)}% do Bruto`, margin, y); y += 5;
+    doc.text(`* Redutor: ${formatar(ultimosResultados.redutor)} (baseado na renda bruta de ${formatar(ultimosResultados.proventos)})`, margin, y);
+
+    doc.setFontSize(8); doc.setTextColor(150, 150, 150);
+    doc.text("Rosemberg Oliveira – Contador", pageWidth / 2, 271, { align: "center" });
+
+    doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(100, 100, 100);
+    doc.text("Demonstrativo para simples conferência.", pageWidth / 2, 277, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.text("Não substitui a folha de pagamento oficial.", pageWidth / 2, 282, { align: "center" });
+
+    doc.setFontSize(8); doc.setTextColor(150, 150, 150);
+    doc.text("Simulação baseada na legislação vigente 2026", pageWidth / 2, 287, { align: "center" });
+    doc.text("RCONT-SCT | (11) 95893-0291 | contato@rcont-sct.com.br", pageWidth / 2, 292, { align: "center" });
+
+    doc.save(`simulacao_pagamento_folguista_${new Date().toISOString().slice(0,10)}.pdf`);
+}
+
+// ══════════════════════════════════════════════
+// WHATSAPP
+// ══════════════════════════════════════════════
+function enviarWhatsAppUsuario() {
+    calcular();
+    setTimeout(() => {
+        let r = ultimosResultados;
+
+        let mensagem  = "SIMULAÇÃO DE PAGAMENTO FOLGUISTA - RCONT-SCT\n\n";
+            mensagem += `Folguista — Dias úteis: ${r.dUteis} | Dias noturnos: ${r.dNoite} | Dias diurnos: ${r.diasDia}\n\n`;
+
+        mensagem += "PROVENTOS:\n\n";
+        mensagem += "├─ Salário Base: "           + formatar(r.salBase) + "\n";
+        mensagem += "├─ Adic. Noturno: "          + formatar(r.adNoturno) + "\n";
+        mensagem += "├─ Adic. Tempo de Serv.: "   + formatar(r.adTempo) + "\n";
+        mensagem += "├─ Adic. Tempo de Serv. HE: " + formatar(r.adTempoHE) + "\n";
+        mensagem += "├─ DSR Mês: "                + formatar(r.dsr) + "\n";
+        mensagem += "├─ Hora Refeição Diurna: "   + formatar(r.hrRefeicao) + "\n";
+        mensagem += "├─ Hora 50% Ref. Noturna: "  + formatar(r.hrRefNot) + "\n";
+        mensagem += "├─ Horário Noturno Reduz.: " + formatar(r.hrRed) + "\n";
+        mensagem += "├─ Hora 50% Noturna: "       + formatar(r.hrPremia) + "\n";
+        mensagem += "├─ Feriado 100% Mês: "       + formatar(r.frdo) + "\n";
+        mensagem += "├─ Folgas Trabalhadas: "      + formatar(r.ft) + "\n";
+        mensagem += "└─ Hora 100% Ref. Noturna: " + formatar(r.ref100) + "\n\n";
+
+        mensagem += "DESCONTOS:\n\n";
+        mensagem += "├─ Adiant. Salário: "        + formatar(r.adiantSal) + "\n";
+        mensagem += "├─ Vale Transporte: "        + formatar(r.valeTransp) + "\n";
+        mensagem += "├─ INSS: "                   + formatar(r.inss) + "\n";
+        mensagem += "├─ IRPF: "                   + formatar(r.melhorIR) + "\n";
+        mensagem += "└─ Contrib. Assistencial (1%): " + formatar(r.contribAssist) + "\n\n";
+
+        mensagem += "TOTAL PROVENTOS (Renda Bruta): " + formatar(r.proventos) + "\n";
+        mensagem += "TOTAL DESCONTOS: " + formatar(r.descontos) + "\n";
+        mensagem += "SALÁRIO LÍQUIDO: " + formatar(r.liquido) + "\n\n\n";
+
+        mensagem += "REDUTOR (Lei 2026):\n";
+        mensagem += "Renda Bruta Mensal: " + formatar(r.proventos) + "\n";
+        if (r.proventos <= 5000) {
+            mensagem += "Faixa: Até R$ 5.000 → Redução máxima de R$ 312,89 (IR zerado)\n";
+        } else if (r.proventos <= 7350) {
+            mensagem += "Faixa: R$ 5.001 a R$ 7.350 → Redução regressiva\n";
+            mensagem += "Cálculo: R$ 978,62 – (0,133145 × " + formatar(r.proventos) + ")\n";
+        } else {
+            mensagem += "Faixa: Acima de R$ 7.350 → Sem redução\n";
+        }
+        mensagem += "Redutor Aplicado: " + formatar(r.redutor) + "\n\n";
+
+        mensagem += "PERCENTUAIS:\n";
+        mensagem += "* Descontos: " + formatarNumero((r.descontos / r.proventos) * 100) + "% do Bruto\n";
+        mensagem += "* Líquido: "   + formatarNumero((r.liquido / r.proventos) * 100) + "% do Bruto\n";
+        mensagem += "* Redutor: "   + formatar(r.redutor) + " (baseado na renda bruta de " + formatar(r.proventos) + ")\n\n";
+
+        mensagem += "⚠️ DEMONSTRATIVO PARA SIMPLES CONFERÊNCIA.\n";
+        mensagem += "Não substitui a folha de pagamento oficial.\n\n";
+
+        mensagem += "Precisa de ajuda com a folha de pagamento? Fale conosco!\n📞 (11) 95893-0291";
+
+        let numero = document.getElementById("whatsappUsuario").value.trim().replace(/\D/g, '');
+        if (!numero) { alert("Por favor, digite um número com DDI (ex: 5511999998888)!"); return; }
+
+        window.open(`https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`, "_blank");
+    }, 500);
+}
+</script>
+</body>
+</html>
