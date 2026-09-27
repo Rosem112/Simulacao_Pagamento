@@ -1,0 +1,64 @@
+{
+  "name": "Simulação de Pagamento — Diurno e Folguista | RCONT-SCT",
+  "short_name": "RCONT Simulação",
+  "description": "Simulação de pagamento para turnos diurno e folguista, com INSS, IRPF 2026, redutor, hora refeição e exportação para PDF/Excel. RCONT-SCT.",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "id": "/simulacao-pagamento-rc",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
+  "orientation": "portrait",
+  "background_color": "#0a1929",
+  "theme_color": "#0a1929",
+  "categories": ["finance", "productivity", "business", "utilities"],
+  "icons": [
+    {
+      "src": "./img/FP-3d-icon_1_192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./img/FP-3d-icon_2_512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./img/logo.png",
+      "sizes": "1024x1536",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Simulação Diurna",
+      "short_name": "Diurno",
+      "description": "Turno diurno — sem horas noturnas, com hora refeição por dia útil",
+      "url": "./index_diurno.html",
+      "icons": [
+        {
+          "src": "./img/FP-3d-icon_1_192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Simulação Folguista",
+      "short_name": "Folguista",
+      "description": "Turno misto — diurno + cobertura noturna das folgas",
+      "url": "./index_folguista.html",
+      "icons": [
+        {
+          "src": "./img/FP-3d-icon_1_192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}
