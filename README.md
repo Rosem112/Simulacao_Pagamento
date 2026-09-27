@@ -176,7 +176,7 @@ para que o app também funcione offline.
 └── img/
     ├── logo.png            Logo RCONT-SCT
     ├── FP-3d-icon_1_192.png
-    ├── FP-3d-icon_2_512.png
+    ├── Contador-icon_512.png
     ├── exportexcel.ico
     └── exportpdf.ico
 ```
