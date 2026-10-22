@@ -175,8 +175,8 @@ para que o app também funcione offline.
 ├── .hintrc                 Configuração do webhint
 └── img/
     ├── logo.png            Logo RCONT-SCT
-    ├── FP-3d-icon_1_192.png
-    ├── Contador-icon_512.png
+    ├── icon-192.png        Ícone do PWA (192x192)
+    ├── icon-512.png        Ícone do PWA (512x512)
     ├── exportexcel.ico
     └── exportpdf.ico
 ```
@@ -207,7 +207,7 @@ em janela própria, sem barra de navegador.
 Ao alterar qualquer arquivo local, **suba a `VERSION`** em `sw.js`:
 
 ```js
-const VERSION = 'v1.1.1';   // → 'v1.1.2'
+const VERSION = 'v1.1.2';   // → 'v1.2.0'
 ```
 
 Sem isso, os clientes podem continuar servindo a versão antiga do HTML do cache.

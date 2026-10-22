@@ -4,7 +4,7 @@
    Bump VERSION para forçar atualização em todos os clientes.
    ═══════════════════════════════════════════════════════════════ */
 
-const VERSION    = 'v1.1.2';
+const VERSION    = 'v1.2.0';
 const CACHE_APP  = `rcont-app-${VERSION}`;
 const CACHE_CDN  = `rcont-cdn-${VERSION}`;
 const ALL_CACHES = [CACHE_APP, CACHE_CDN];
@@ -15,8 +15,8 @@ const PRECACHE = [
     './index_diurno.html',
     './index_folguista.html',
     './manifest.json',
-    './img/FP-3d-icon_1_192.png',
-    './img/Contador-icon_512.png',
+    './img/icon-192.png',
+    './img/icon-512.png',
     './img/logo.png',
     './img/exportexcel.ico',
     './img/exportpdf.ico'

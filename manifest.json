@@ -15,20 +15,14 @@
   "categories": ["finance", "productivity", "business", "utilities"],
   "icons": [
     {
-      "src": "./img/FP-3d-icon_1_192.png",
+      "src": "./img/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "./img/Contador-icon_512.png",
+      "src": "./img/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "./img/logo.png",
-      "sizes": "1024x1536",
       "type": "image/png",
       "purpose": "any"
     }
@@ -41,7 +35,7 @@
       "url": "./index_diurno.html",
       "icons": [
         {
-          "src": "./img/FP-3d-icon_1_192.png",
+          "src": "./img/icon-192.png",
           "sizes": "192x192",
           "type": "image/png"
         }
@@ -54,7 +48,7 @@
       "url": "./index_folguista.html",
       "icons": [
         {
-          "src": "./img/FP-3d-icon_1_192.png",
+          "src": "./img/icon-192.png",
           "sizes": "192x192",
           "type": "image/png"
         }
