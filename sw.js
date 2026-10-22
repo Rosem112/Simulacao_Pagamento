@@ -4,7 +4,7 @@
    Bump VERSION para forçar atualização em todos os clientes.
    ═══════════════════════════════════════════════════════════════ */
 
-const VERSION    = 'v1.2.0';
+const VERSION    = 'v1.2.1';
 const CACHE_APP  = `rcont-app-${VERSION}`;
 const CACHE_CDN  = `rcont-cdn-${VERSION}`;
 const ALL_CACHES = [CACHE_APP, CACHE_CDN];
